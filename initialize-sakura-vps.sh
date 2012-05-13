@@ -1,7 +1,5 @@
-#!/bin/sh
-
 # update packages
-#yum update -y
+yum update -y
 
 # user add
 while [ -z $user_name ]
@@ -13,25 +11,12 @@ done
 echo -n "enter group name(default: users): "
 read group_name
 
-echo -n "add to wheel group?(default: yes): "
-read add_to_wheel
-
 if [ -z $group_name ]
 then
 	group_name="users"
 fi
 
-if [ -z $add_to_wheel ]
-then
-	add_to_wheel="yes"
-fi
-
-if [ $add_to_wheel = "yes" ]
-then
-	subgroup="-G wheel"
-fi
-
-useradd -g "$group_name" $subgroup "$user_name"
+useradd -g "$group_name" -G wheel  "$user_name"
 if [ $? != 0 ]
 then
 	exit 1
@@ -57,14 +42,12 @@ echo $ssh_public_key > /home/$user_name/.ssh/authorized_keys
 chown $user_name:$group_name /home/$user_name/.ssh/authorized_keys
 chmod 600 /home/$user_name/.ssh/authorized_keys
 
+# setup su/sudo settings
+#echo "auth required pam_wheel.so use_uid" >> /etc/pam.d/su
+echo "%wheel ALL=(ALL) ALL" >> /etc/sudoers.d/wheel
+chmod 440 /etc/sudoers.d/wheel
+
 # setup ssh settings
-if [ $add_to_wheel = "yes" ]
-then
-	echo "SU_WHEEL_ONLY yes" >> /etc/login.defs
-fi
-
 echo "PermitRootLogin no" >> /etc/ssh/sshd_config
-echo "UsePAM no" >> /etc/ssh/sshd_config
 sed -i "s/^PasswordAuthentication yes/PasswordAuthentication no/" /etc/ssh/sshd_config
-
 service sshd restart
